@@ -2,7 +2,7 @@
 _A Java program that crawls information of Phigros from the web._
 
 ## What This Program Does
-This program visits [the wiki site](https://zh.moegirl.org.cn), from which it crawls information of songs in Phigros.  
+This program visits [the wiki](https://zh.moegirl.org.cn) from which it crawls information of songs in Phigros.  
 Then it converts the information into separate JSON files, which are then respectively put into different song folders.  
 Using the information it crawls, we're then able to quickly find chart files for each individual song by checking the number of notes, BPM, etc.
 
@@ -13,16 +13,17 @@ We've hosted a website that serves the information mentioned above.
 
 Feel free to visit it at https://phigros.neonmc.club.
 
-Apart from audio files, illustrations, and the 404 page, all the text information is served in JSON format. That means, it's hardly human-readable, but easy to parse using programs.
+Apart from audio files, illustrations, and some pages, all the text information is served in JSON format. That means, it's hardly human-readable, but easy to parse using programs.
 
 By this means, accessing Phigros information becomes easier.
 
 ## Usage
 As said above, there's no need to clone this repository.  
-All you need to do is parse the information that you've got from our site.
+All you need to do is parse the information that you get from our site.
 
 ### Structure of Files
 #### The File Tree
+Having an overview of the structure of our files before specifically learning about each file is rather a good idea.
 ```
 (root)
 ├── info.json
@@ -94,7 +95,18 @@ All you need to do is parse the information that you've got from our site.
     ├── anomaly
     └── destination
 ```
-
+The structure of each song's folder is as follows:
+```
+mopemope
+├── Chart_AT.json
+├── Chart_EZ.json
+├── Chart_HD.json
+├── Chart_IN.json
+├── Chart_SP.json
+├── illustration.png
+├── info.json
+└── music.wav
+```
 #### The Summary File
 As shown above, you can first visit the `info.json` in the root directory, whose structure is as follows (excerpted):
 ```json
