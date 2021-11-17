@@ -1,14 +1,14 @@
 # Phigros Info Collector
 _A Java program that crawls information of Phigros from the web._
 
-### What This Program Does
+## What This Program Does
 This program visits [the wiki site](https://zh.moegirl.org.cn), from which it crawls information of songs in Phigros.  
 Then it converts the information into separate JSON files, which are then respectively put into different song folders.  
 Using the information it crawls, we're then able to quickly find chart files for each individual song by checking the number of notes, BPM, etc.
 
 Having sorted them out, we're nowhere far from creating an API for Phigros!
 
-### What We Provide You With
+## What We Provide You With
 We've hosted a website that serves the information mentioned above.
 
 Feel free to visit it at https://phigros.neonmc.club.
@@ -17,11 +17,12 @@ Apart from audio files, illustrations, and the 404 page, all the text informatio
 
 By this means, accessing Phigros information becomes easier.
 
-### Usage
+## Usage
 As said above, there's no need to clone this repository.  
 All you need to do is parse the information that you've got from our site.
 
-Structure of the files:
+### Structure of Files
+#### The File Tree
 ```
 (root)
 ├── info.json
@@ -94,8 +95,8 @@ Structure of the files:
     └── destination
 ```
 
-##### The Summary File
-As shown above, you can first visit the `info.json` in the root directory, whose structure is as the following (adapted):
+#### The Summary File
+As shown above, you can first visit the `info.json` in the root directory, whose structure is as follows (excerpted):
 ```json
 {
   "version": "2.0.1",
@@ -204,8 +205,8 @@ Then the boolean value `direct` represents whether this chapter has its own fold
 If the chapter is available in game, then there'll be a string called `cover` representing the relative path of the cover illustration of the chapter. Moreover, if there's a cover specifically designed for the chapter when its theme song is locked, there's `cover-locked` following after.  
 At last, there comes the number of songs in the chapter.
 
-##### The Chapter Info File
-The `info.json` in each chapter's folder looks like the following:
+#### The Chapter Info File
+The `info.json` in each chapter's folder looks as follows:
 ```json
 {
   "name": {
@@ -237,8 +238,8 @@ The `info.json` in each chapter's folder looks like the following:
 }
 ```
 The structure is easy to understand, so no further description is provided here.
-##### The Song Info File
-The `info.json` in each song's folder is formatted as the following:
+#### The Song Info File
+The `info.json` in each song's folder is formatted as follows:
 ```json
 {
   "name": "もぺもぺ",
@@ -290,4 +291,22 @@ The `info.json` in each song's folder is formatted as the following:
   "length": "1:50"
 }
 ```
-To be specific, the illustration of the song is already in the song's folder with the name of `illustration.png`. The audio file is also available, which is named `music.wav`.
+To be specific, the illustration of the song, apart from downloadable using the link at `illustration`, is already in the song's folder with the name of `illustration.png`. The audio file is also available in the folder, named `music.wav`.
+
+For each chart of the song, there is a string `level` representing whether it is `EZ`, `HD`, `IN`, `AT`, `Legacy`, or `SP`.  
+It is notable that, **generally**, `difficulty1` (known as "定级" in Chinese) is an integer value representing the difficulty of the chart, while `difficulty2` (known as "定数" in Chinese) is a float representation of the difficulty of the chart.  
+**Specially**, some charts of a new song after an update might not have its float-represented difficulty confirmed immediately. In this case, there should have appended a question mark surrouded by brackets `(?)` after it.  
+Moreover, if the level of the chart is `SP`, both two difficulty representations are strings with a question mark.  
+In all, it is highly recommended your program read strings from the two difficulty representations if not for analyzing purposes.  
+What is followed by is an integer value `notes` representing the number of notes in the chart, together with a string `charter` representing the author of the chart.
+
+At last, `bpm`, which represents the beat-per-minute value(s) of the song, is always a string, for there might be multiple BPM values that one song uses (in this case it is formatted as `a-b`, where `a` stands for the minimal BPM value, and `b` stands for the maximal one).  
+Moreover, `length`, representing the length of the song, is also always a string.
+
+### Accessing Information
+1. First you'd need to visit https://phigros.neonmc.club/info.json in order to access the summary file `info.json` in the root directory. From that file you will find the relative path of each chapter's folder.  
+   Moreover, to access the cover illustration of a chapter, just find the path by its `cover` string or `cover-locked` string.
+2. Once you've entered the folder of a chapter, access the chapter info file `info.json` located right inside the folder. In the file you'll find the path to each song's folder.
+3. Having entered the folder of a song, you should read the song info file `info.json` in the folder to acknowledge the song's name, charts, composer, illustrator, etc.  
+   Then you can find chart files by listing files in the folder whose name ends with ".json". Specifically, the name of each chart file is as `Chart_%s.json`, where `%s` is a level string that can be found in the song info file.  
+   As mentioned before, the illustration of the song is named `illustration.png`, and the audio is named `music.wav`.
