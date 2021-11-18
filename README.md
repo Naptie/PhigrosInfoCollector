@@ -1,5 +1,5 @@
-# Phigros Info Collector
-_A Java program that crawls information of Phigros from the web._
+# Phigros Info Collector, powering PhiZone
+_A Java program that crawls information of Phigros from the web. Meanwhile the program behind PhiZone._
 
 ## What This Program Does
 This program visits [the wiki](https://zh.moegirl.org.cn) from which it crawls information of songs in Phigros.  
@@ -9,17 +9,17 @@ Using the information it crawls, we're then able to quickly find chart files for
 Having sorted them out, we're nowhere far from creating an API for Phigros!
 
 ## What We Provide You With
-We've hosted a website that serves the information mentioned above.
+We've hosted a website called [**PhiZone**](https://www.phi.zone), which serves the information mentioned above.
 
-Feel free to visit it at https://phigros.neonmc.club.
+Feel free to visit the API at https://api.phi.zone.
 
-Apart from audio files, illustrations, and some pages, all the text information is served in JSON format. That means, it's hardly human-readable, but easy to parse using programs.
+Apart from audio files and illustrations, all the text information is served in JSON format. That means, it's hardly human-readable, but easy to parse using programs.
 
 By this means, accessing Phigros information becomes easier.
 
 ## Usage
 As said above, there's no need to clone this repository.  
-All you need to do is parse the information that you get from our site.
+All you need to do is parse the information that you get from the [**PhiZone API**](https://api.phi.zone).
 
 ### Structure of Files
 #### The File Tree
@@ -316,7 +316,7 @@ At last, `bpm`, which represents the beat-per-minute value(s) of the song, is al
 Moreover, `length`, representing the length of the song, is also always a string.
 
 ### Accessing Information
-1. First you'd need to visit https://phigros.neonmc.club/info.json in order to access the summary file `info.json` in the root directory. From that file you will find the relative path of each chapter's folder.  
+1. First you'd need to visit https://api.phi.zone/info.json in order to access the summary file `info.json` in the root directory. From that file you will find the relative path of each chapter's folder.  
    Moreover, to access the cover illustration of a chapter, just find the path by its `cover` string or `cover-locked` string.
 2. Once you've entered the folder of a chapter, access the chapter info file `info.json` located right inside the folder. In the file you'll find the path to each song's folder.
 3. Having entered the folder of a song, you should read the song info file `info.json` in the folder to acknowledge the song's name, charts, composer, illustrator, etc.  
