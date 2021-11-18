@@ -1,5 +1,5 @@
 # Phigros Info Collector, powering PhiZone
-_A Java program that crawls information of Phigros from the web. Meanwhile the program behind PhiZone._
+_A Java program that crawls information of Phigros from the web. Meanwhile the program behind [**PhiZone**](https://www.phi.zone)._
 
 ## What This Program Does
 This program visits [the wiki](https://zh.moegirl.org.cn) from which it crawls information of songs in Phigros.  
