@@ -11,9 +11,9 @@ Having sorted them out, we're nowhere far from creating an API for Phigros!
 ## What We Provide You With
 We've hosted a website called [**PhiZone**](https://www.phi.zone), which serves the information mentioned above.
 
-Feel free to visit the API at https://api.phi.zone.
+Feel free to visit the API at https://api.phi.zone (self-hosted server in Hong Kong, indexed), https://api.neonmc.top:6600 (self-hosted server in Beijing, indexed), and https://phizone.github.io (GitHub mirror, not indexed).
 
-Apart from audio files and illustrations, all the text information is served in JSON format. That means, it's hardly human-readable, but easy to parse using programs.
+Apart from audio files and illustrations, all the text information is served in JSON format, which is easy to parse using programs.
 
 By this means, accessing Phigros information becomes easier.
 
@@ -117,16 +117,6 @@ As shown above, you can first visit the `info.json` in the root directory, whose
   "cover": "covers/phigros.png",
   "songs": 128,
   "chapters": [
-    {
-      "name": {
-        "subtitle": "Chapter Legacy",
-        "title": "过去的章节"
-      },
-      "direct": true,
-      "loc": "chapter-legacy/",
-      "cover": "covers/chapter-legacy.png",
-      "songs": 15
-    },
     {
       "name": {
         "subtitle": "Chapter 5",
