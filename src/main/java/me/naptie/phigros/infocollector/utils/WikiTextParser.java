@@ -10,11 +10,12 @@ import java.util.regex.Pattern;
 
 public class WikiTextParser {
 
-	public static void main(String[] args) throws IOException {
-		parse(HttpManager.readJsonFromUrl("https://api.neonmc.top:6400/wikitext.json").getJSONObject("parse").getJSONObject("wikitext").getString("*")).toJSONString();
-	}
+//	public static void main(String[] args) throws IOException {
+//		parse(HttpManager.readJsonFromUrl("https://api.neonmc.top:6400/wikitext.json").getJSONObject("parse").getJSONObject("wikitext").getString("*")).toJSONString();
+//	}
 
 	public static JSONObject parse(String wikiText) {
+		wikiText = wikiText.replaceAll("\t", "");
 		JSONObject result = new JSONObject(true);
 		String[] chapterName = ChapterManager.getFormalName(wikiText.split("==")[1]);
 		JSONObject name = new JSONObject(true);

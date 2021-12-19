@@ -1,9 +1,11 @@
 package me.naptie.phigros.infocollector;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import me.naptie.phigros.infocollector.objects.ChartProvided;
 import me.naptie.phigros.infocollector.objects.ChartRequired;
+import me.naptie.phigros.infocollector.objects.MySQL;
 import me.naptie.phigros.infocollector.utils.ChapterManager;
 import me.naptie.phigros.infocollector.utils.HttpManager;
 import me.naptie.phigros.infocollector.utils.SongManager;
@@ -14,7 +16,11 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
 import java.util.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -26,7 +32,7 @@ public class Main {
 		Scanner scanner = new Scanner(System.in);
 		String command;
 		do {
-			System.out.println("Enter a command: ");
+			System.out.print(">>> ");
 			command = scanner.next().toLowerCase();
 			switch (command) {
 				case "crawl": {
@@ -71,8 +77,227 @@ public class Main {
 					check(new File(scanner.next()));
 					break;
 				}
+				case "transfer": {
+					transfer(scanner);
+					break;
+				}
 			}
 		} while (!command.equalsIgnoreCase("stop") && !command.equalsIgnoreCase("end"));
+	}
+
+	private static void transfer(Scanner scanner) {
+		System.out.println("Enter MySQL credentials (address, port, username, password, database):");
+		String address = scanner.next(), port = scanner.next(), username = scanner.next(), password = scanner.next(), database = scanner.next();
+		MySQL mysql = new MySQL(address, Integer.parseInt(port), username, password, database);
+		while (true) {
+			System.out.print("- What would you like to transfer? A (c)hapter or a (s)ong? Or you would like to (a)bort me? (c / s / a)\n- ");
+			String op = scanner.next().toLowerCase();
+			if (op.charAt(0) == 'c') {
+				JSONArray chapters = JSON.parseObject(readJSONFile(new File("phigros", "info.json"))).getJSONArray("chapters");
+				System.out.println("- Sure. We'll transfer a chapter. Which chapter should we transfer? (0 ~ " + (chapters.size() - 1) + ")");
+				for (int i = 0; i < chapters.size(); i++) {
+					JSONObject chapter = chapters.getJSONObject(i);
+					System.out.printf("%2d. %s - %s\n", i, chapter.getJSONObject("name").getString("subtitle"), chapter.getJSONObject("name").getString("title"));
+				}
+				System.out.print("- ");
+				int choice = scanner.nextInt();
+				JSONObject chapter = chapters.getJSONObject(choice);
+				String subtitle = chapter.getJSONObject("name").getString("subtitle");
+				String title = chapter.getJSONObject("name").getString("title");
+				String path = chapter.getString("loc");
+				int chapterIndex, songBegin;
+				try {
+					chapterIndex = mysql.countRows("phizone_chapter") + 1;
+					songBegin = mysql.countRows("phizone_song");
+				} catch (SQLException e) {
+					System.out.println("- Failed. Caught an SQL Exception!");
+					e.printStackTrace();
+					break;
+				}
+				System.out.printf("- Sure. We'll transfer %s - %s. This chapter contains the following songs:\n", subtitle, title);
+				JSONArray songs = JSON.parseObject(readJSONFile(new File("phigros" + File.separator + chapter.getString("loc"), "info.json"))).getJSONArray("songs");
+				for (int i = 0; i < songs.size(); i++) {
+					System.out.printf("  %2d. %s\n", i, songs.getJSONObject(i).getString("name"));
+				}
+				System.out.print("  Would you like to add them in the (d)efault order or (a)nother order, or (m)anually add them one by one? (d / a / m)\n- ");
+				int originalCnt = chapter.getIntValue("songs");
+				String songIndexes, opt = scanner.next().toLowerCase();
+				if (opt.charAt(0) == 'a') {
+					System.out.print("- Please input an order. (integers separated with commas)\n- ");
+					String orderStr = "";
+					long cnt = -1;
+					while (originalCnt != cnt) {
+						orderStr = scanner.next();
+						cnt = Arrays.stream(orderStr.split(",")).count();
+						if (cnt != originalCnt) {
+							System.out.println("- Your order contains " + cnt + " numbers rather than " + originalCnt + " numbers. Please input your order again.\n- ");
+						}
+					}
+					List<Integer> order = toInt(orderStr.split(","));
+					for (int i = 1; i <= order.size(); i++) {
+						JSONObject song = JSON.parseObject(readJSONFile(new File("phigros" + File.separator + path + songs.getJSONObject(order.get(i - 1)).getString("loc"), "info.json")));
+						String songPath = path + songs.getJSONObject(order.get(i - 1)).getString("loc");
+						System.out.println("- Transferring " + song.getString("name") + "...");
+						transferSong(song, songPath, mysql, chapterIndex, songBegin + i, scanner);
+					}
+					songIndexes = toString(songBegin + 1, songBegin + originalCnt);
+				} else if (opt.charAt(0) == 'd') {
+					for (int i = 1; i <= originalCnt; i++) {
+						JSONObject song = JSON.parseObject(readJSONFile(new File("phigros" + File.separator + path + songs.getJSONObject(i - 1).getString("loc"), "info.json")));
+						String songPath = path + songs.getJSONObject(i - 1).getString("loc");
+						System.out.println("- Transferring " + song.getString("name") + "...");
+						transferSong(song, songPath, mysql, chapterIndex, songBegin + i, scanner);
+					}
+					songIndexes = toString(songBegin + 1, songBegin + originalCnt);
+				} else {
+					System.out.print("- Please input indexes of songs that makes up this chapter. (integers separated with commas)\n- ");
+					songIndexes = scanner.next();
+					long cnt = Arrays.stream(songIndexes.split(",")).count();
+					System.out.println("- If I'm right, there'll be " + cnt + " song(s) included, " + (cnt == originalCnt ? "which is right the value recorded in the chapter info. " : "which is different from the value " + originalCnt + " recorded in the chapter info."));
+				}
+				System.out.println("Inserting chapter into the phizone_chapter table...");
+				try {
+					if (mysql.insert("phizone_chapter", new String[]{"subtitle", "title", "songs", "path"}, new String[]{subtitle, title, songIndexes, path})) {
+						System.out.println("  Succeeded!");
+					} else {
+						System.out.println("  Failed!");
+					}
+				} catch (SQLException e) {
+					System.out.println("  Failed. Caught an SQL Exception!");
+					e.printStackTrace();
+				}
+			} else if (op.charAt(0) == 's') {
+				System.out.print("- Sure. We'll transfer a song. What's the name for it?\n- ");
+				String name = scanner.next();
+				System.out.print("- Looking into chapters for " + name + "...");
+				List<Song> result = new ArrayList<>();
+				JSONArray chapters = JSON.parseObject(readJSONFile(new File("phigros", "info.json"))).getJSONArray("chapters");
+				for (int i = 0; i < chapters.size(); i++) {
+					JSONObject chapter = chapters.getJSONObject(i);
+					if (!chapter.getBooleanValue("direct")) {
+						continue;
+					}
+					JSONArray songs = JSON.parseObject(readJSONFile(new File("phigros" + File.separator + chapter.getString("loc"), "info.json"))).getJSONArray("songs");
+					for (int j = 0; j < songs.size(); j++) {
+						JSONObject song = songs.getJSONObject(j);
+						if (song.getString("name").equalsIgnoreCase(name) || song.getString("loc").replaceAll("/", "").equalsIgnoreCase(name)) {
+							result.add(new Song(song.getString("name"), (new File("phigros" + File.separator + chapter.getString("loc"), song.getString("loc"))).getAbsolutePath().split("phigros" + File.separator)[1]));
+						}
+					}
+				}
+				for (Song s : result) {
+					System.out.println("  Found " + s.name + " at " + s.path);
+				}
+				Song target = result.get(0);
+				if (result.size() > 1) {
+					System.out.print("  Which song would you like to transfer? (0 ~ " + (result.size() - 1) + ")\n- ");
+					int choice = scanner.nextInt();
+					target = result.get(choice);
+				}
+				System.out.println("- Sure. We'll transfer " + target.name + " at " + target.path + ".");
+				JSONObject song = JSON.parseObject(readJSONFile(new File("phigros" + File.separator + target.path, "info.json")));
+				transferSong(song, target.path, mysql, -1, -1, scanner);
+			} else if (op.charAt(0) == 'a') {
+				System.out.println("- Okay. Looking forward to seeing you again.");
+				break;
+			} else {
+				System.out.println("- Sorry, but I can't understand your command.");
+			}
+		}
+	}
+
+	private static void transferSong(JSONObject song, String path, MySQL mysql, int chapter, int songIndex, Scanner scanner) {
+		JSONArray charts = song.getJSONArray("charts");
+		int begin = -1, end = charts.size();
+		try {
+			begin = mysql.countRows("phizone_chart");
+			if (songIndex == -1) {
+				songIndex = mysql.countRows("phizone_song") + 1;
+			}
+			for (int i = 0; i < end; i++) {
+				JSONObject chart = charts.getJSONObject(i);
+				String level = chart.getString("level");
+				String difficulty = chart.getString("difficulty2");
+				if (difficulty.equals("?")) {
+					difficulty = "0.0";
+				}
+				if (difficulty.contains("(?)")) {
+					difficulty = difficulty.replace("(?)", "").trim();
+				}
+				int notes = chart.getIntValue("notes");
+				String charter = chart.getString("charter");
+				mysql.insert("phizone_chart", new String[]{"level", "difficulty", "notes", "charter", "song"}, new String[]{level, difficulty, String.valueOf(notes), charter, String.valueOf(songIndex)});
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		if (begin == -1) {
+			System.out.println("  Fatal error: Cannot get row count from phizone_chart!");
+			return;
+		}
+		end += begin;
+		try {
+			String name = song.getString("name");
+			String composer = song.getString("composer");
+			String illustration = song.getString("illustration");
+			String illustrator = song.getString("illustrator");
+			String chartIndexes = toString(begin + 1, end);
+			if (chapter == -1) {
+				System.out.print("  Which chapter does it belong to? (single integer)\n- ");
+				chapter = scanner.nextInt();
+				System.out.print("- ");
+			} else {
+				System.out.print("  ");
+			}
+			String bpm = song.getString("bpm");
+			String duration = getDuration(song.getString("length"));
+			SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+			f.setTimeZone(TimeZone.getTimeZone("GMT"));
+			String time = f.format(new Date()) + "000";
+			if (mysql.insert("phizone_song", new String[]{"name", "composer", "illustration", "illustrator", "charts", "chapter", "bpm", "duration", "path", "official", "time", "score", "votes"}, new String[]{name, composer, illustration, illustrator, chartIndexes, String.valueOf(chapter), bpm, duration, path, "1", time, "0", "0"})) {
+				System.out.println("Succeeded!");
+			} else {
+				System.out.println("Failed!");
+			}
+		} catch (SQLException e) {
+			System.out.println("Failed. Caught SQLException!");
+			e.printStackTrace();
+		}
+	}
+
+	private static List<Integer> toInt(String[] src) {
+		List<Integer> result = new ArrayList<>();
+		for (String e : src) {
+			result.add(Integer.parseInt(e));
+		}
+		return result;
+	}
+
+	private static String getDuration(String src) {
+		String[] spl = src.split(":");
+		int min = Integer.parseInt(spl[0]);
+		int sec = Integer.parseInt(spl[1]);
+		return (min * 60 + sec) + "000000";
+	}
+
+	private static String toString(int a, int b) {
+		StringBuilder result = new StringBuilder();
+		for (int i = a; i <= b; i++) {
+			if (result.length() > 0) {
+				result.append(",");
+			}
+			result.append(i);
+		}
+		return result.toString();
+	}
+
+	static class Song {
+		String name, path;
+
+		Song(String name, String path) {
+			this.name = name;
+			this.path = path;
+		}
 	}
 
 	private static void crawl(Scanner scanner) throws IOException {
@@ -154,7 +379,7 @@ public class Main {
 					if (!f.getName().endsWith(".json")) {
 						continue;
 					}
-					if (f.getName().matches("Chart_[A-z][A-z]_\\d{13,}.json")) {
+					if (f.getName().matches("Chart_[A-z]*_\\d{13,}.json")) {
 						System.out.println("[DUPLICATED] " + f.getAbsolutePath());
 					}
 					String md5 = getFileChecksum(MessageDigest.getInstance("MD5"), f);
