@@ -168,7 +168,10 @@ public class Main {
 				}
 			} else if (op.charAt(0) == 's') {
 				System.out.print("- Sure. We'll transfer a song. What's the name for it?\n- ");
-				String name = scanner.next();
+				String name = scanner.nextLine().toLowerCase();
+				while (name.replaceAll("\n", "").isEmpty()) {
+					name = scanner.nextLine().toLowerCase();
+				}
 				System.out.print("- Looking into chapters for " + name + "...");
 				List<Song> result = new ArrayList<>();
 				JSONArray chapters = JSON.parseObject(readJSONFile(new File("phigros", "info.json"))).getJSONArray("chapters");
@@ -180,7 +183,7 @@ public class Main {
 					JSONArray songs = JSON.parseObject(readJSONFile(new File("phigros" + File.separator + chapter.getString("loc"), "info.json"))).getJSONArray("songs");
 					for (int j = 0; j < songs.size(); j++) {
 						JSONObject song = songs.getJSONObject(j);
-						if (song.getString("name").equalsIgnoreCase(name) || song.getString("loc").replaceAll("/", "").equalsIgnoreCase(name)) {
+						if (song.getString("name").toLowerCase().contains(name) || song.getString("loc").replaceAll("/", "").toLowerCase().equalsIgnoreCase(name)) {
 							result.add(new Song(song.getString("name"), (new File("phigros" + File.separator + chapter.getString("loc"), song.getString("loc"))).getAbsolutePath().split("phigros" + File.separator)[1]));
 						}
 					}
@@ -245,6 +248,8 @@ public class Main {
 			if (chapter == -1) {
 				System.out.print("  Which chapter does it belong to? (single integer)\n- ");
 				chapter = scanner.nextInt();
+				String songs = mysql.get("phizone_chapter", "songs", chapter) + "," + songIndex;
+				mysql.update("phizone_chapter", new String[]{"songs"}, new String[]{songs}, chapter);
 				System.out.print("- ");
 			} else {
 				System.out.print("  ");
@@ -634,9 +639,7 @@ public class Main {
 		appendIndirectChapters("unavailable", chapters);
 		result.put("chapters", chapters);
 		File out = new File("phigros", "info.json");
-		BufferedWriter writer = new BufferedWriter(new FileWriter(out));
-		writer.write(result.toJSONString());
-		writer.close();
+		write(result, out);
 		System.out.println("Successfully summarized info to " + out.getAbsolutePath());
 	}
 

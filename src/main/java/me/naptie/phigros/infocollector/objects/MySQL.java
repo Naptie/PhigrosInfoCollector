@@ -33,6 +33,30 @@ public class MySQL {
 		return res != 0;
 	}
 
+	public boolean update(String table, String[] keys, String[] values, int id) throws SQLException {
+		Statement statement = connection.createStatement();
+		StringBuilder str = new StringBuilder("UPDATE " + table + " SET ");
+		for (int i = 0; i < keys.length; i++) {
+			str.append(keys[i]).append("=\"").append(values[i]).append(i == keys.length - 1 ? "\" " : "\", ");
+		}
+		str.append("WHERE id = ").append(id).append(";");
+		System.out.println("  " + str);
+		int res = statement.executeUpdate(str.toString());
+		statement.close();
+		return res != 0;
+	}
+
+	public String get(String table, String key, int id) throws SQLException {
+		Statement statement = connection.createStatement();
+		String str = "SELECT " + key + " FROM " + table + " WHERE id = " + id + ";";
+		System.out.println("  " + str);
+		ResultSet result = statement.executeQuery(str);
+		result.next();
+		String content = result.getString(key);
+		statement.close();
+		return content;
+	}
+
 	@SuppressWarnings("SqlResolve")
 	public int countRows(String table) throws SQLException {
 		Statement statement = connection.createStatement();
