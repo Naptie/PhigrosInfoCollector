@@ -3,8 +3,6 @@ package me.naptie.phigros.infocollector.utils;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,7 +21,7 @@ public class WikiTextParser {
 		name.put("title", f(chapterName[1]));
 		result.put("name", name);
 		JSONArray songs = new JSONArray();
-		int i = wikiText.indexOf("{| class="), next = 0;
+		int i = wikiText.indexOf("{| class="), next;
 		while (i < wikiText.length()) {
 			int j = i + 2;
 			while (!(wikiText.charAt(j - 2) == '\n' && wikiText.charAt(j - 1) == '|' && wikiText.charAt(j) == '}')) {
@@ -282,7 +280,7 @@ public class WikiTextParser {
 	}
 
 	private static String f(String str) {
-		return str.replaceAll("-\\{|}-", "").replaceAll("\\{\\{lj\\||}}", "").trim();
+		return str.replaceAll("-\\{|}-", "").replaceAll("\\{\\{lj\\||}}", "").replaceAll("<br>", "").trim();
 	}
 
 }

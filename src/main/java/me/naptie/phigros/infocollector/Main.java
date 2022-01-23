@@ -11,16 +11,14 @@ import me.naptie.phigros.infocollector.utils.HttpManager;
 import me.naptie.phigros.infocollector.utils.SongManager;
 import me.naptie.phigros.infocollector.utils.WikiTextParser;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.ZoneId;
 import java.util.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -81,8 +79,82 @@ public class Main {
 					transfer(scanner);
 					break;
 				}
+				case "checksum": {
+					checksum(scanner.next());
+					break;
+				}
+				case "match": {
+					match(new File(scanner.next()));
+					break;
+				}
 			}
 		} while (!command.equalsIgnoreCase("stop") && !command.equalsIgnoreCase("end"));
+	}
+
+	private static void match(File chartFolder) throws IOException, NoSuchAlgorithmException {
+		JSONArray array = JSONArray.parseArray(IOUtils.toString((InputStream) HttpManager.readUrl("https://api.phi.zone/Chart_MD5.json", false).getContent(), StandardCharsets.UTF_8));
+		Map<String, String> md5Map = new LinkedHashMap<>();
+		for (int i = 0; i < array.size(); i++) {
+			JSONObject chart = array.getJSONObject(i);
+			md5Map.put(String.valueOf(chart.getString("md5")), chart.getString("chapter") + ", " + chart.getString("song") + ", " + chart.getString("chart"));
+		}
+		for (File file : Objects.requireNonNull(chartFolder.listFiles())) {
+			if (!file.getName().startsWith("Chart")) {
+				continue;
+			}
+			String md5 = getFileChecksum(MessageDigest.getInstance("MD5"), file);
+			if (md5Map.containsKey(md5)) {
+				md5Map.remove(md5);
+			} else {
+				System.out.println("[UNUSED] " + file.getName());
+			}
+		}
+		if (md5Map.size() > 0) {
+			for (Map.Entry<String, String> entry : md5Map.entrySet()) {
+				System.out.println("[OUTDATED] " + entry.getValue());
+			}
+		}
+	}
+
+	private static void checksum(String algorithm) throws NoSuchAlgorithmException, IOException {
+		JSONArray result = new JSONArray();
+		JSONArray chapters = JSONObject.parseObject(readJSONFile(new File("phigros", "info.json"))).getJSONArray("chapters");
+		for (int i = 0; i < chapters.size(); i++) {
+			if (!chapters.getJSONObject(i).getBooleanValue("direct")) {
+				continue;
+			}
+			JSONObject chapter = JSONObject.parseObject(readJSONFile(new File("phigros" + File.separator + chapters.getJSONObject(i).getString("loc"), "info.json")));
+			JSONArray songs = chapter.getJSONArray("songs");
+			for (int j = 0; j < songs.size(); j++) {
+				File folder = new File("phigros" + File.separator + chapters.getJSONObject(i).getString("loc"), songs.getJSONObject(j).getString("loc"));
+				JSONObject song = JSONObject.parseObject(readJSONFile(new File(folder, "info.json")));
+				JSONArray charts = song.getJSONArray("charts");
+				for (int k = 0; k < charts.size(); k++) {
+					JSONObject chart = charts.getJSONObject(k);
+					File f = new File(folder, "Chart_" + chart.getString("level") + ".json");
+					if (f.exists()) {
+						JSONObject obj = new JSONObject();
+						obj.put("chapter", chapter.getJSONObject("name").getString("subtitle") + " - " + chapter.getJSONObject("name").getString("title"));
+						obj.put("song", song.getString("name"));
+						obj.put("chart", chart.getString("level"));
+						obj.put("md5", getFileChecksum(MessageDigest.getInstance(algorithm), f));
+						System.out.println(obj.getString("chapter") + ", " + obj.getString("song") + ", " + obj.getString("chart") + ": " + obj.getString("md5"));
+						result.add(obj);
+						ChartProvided p = new ChartProvided(f);
+						if (p.getNotes() != chart.getIntValue("notes")) {
+							System.out.printf("[ERROR] %s - %s - %s - %s: requires %d notes but is given %d notes.\n", chapter.getJSONObject("name").getString("subtitle"), chapter.getJSONObject("name").getString("title"), songs.getJSONObject(i).getString("name"), chart.getString("level"), chart.getIntValue("notes"), p.getNotes());
+						}
+					} else {
+						System.out.printf("[MISSING] %s - %s - %s - %s\n", chapter.getJSONObject("name").getString("subtitle"), chapter.getJSONObject("name").getString("title"), songs.getJSONObject(i).getString("name"), chart.getString("level"));
+					}
+				}
+			}
+		}
+		File out = new File("phigros", "Chart_" + algorithm + ".json");
+		System.out.println("Writing to " + out.getAbsolutePath());
+		BufferedWriter writer = new BufferedWriter(new FileWriter(out));
+		writer.write(result.toJSONString());
+		writer.close();
 	}
 
 	private static void transfer(Scanner scanner) {
@@ -294,15 +366,6 @@ public class Main {
 			result.append(i);
 		}
 		return result.toString();
-	}
-
-	static class Song {
-		String name, path;
-
-		Song(String name, String path) {
-			this.name = name;
-			this.path = path;
-		}
 	}
 
 	private static void crawl(Scanner scanner) throws IOException {
@@ -690,7 +753,7 @@ public class Main {
 		try {
 			FileReader fileReader = new FileReader(jsonFile);
 			Reader reader = new InputStreamReader(new FileInputStream(jsonFile), StandardCharsets.UTF_8);
-			int ch = 0;
+			int ch;
 			StringBuilder builder = new StringBuilder();
 			while ((ch = reader.read()) != -1) {
 				builder.append((char) ch);
@@ -721,7 +784,7 @@ public class Main {
 
 		//Create byte array to read data in chunks
 		byte[] byteArray = new byte[1024];
-		int bytesCount = 0;
+		int bytesCount;
 
 		//Read file data and update in message digest
 		while ((bytesCount = fis.read(byteArray)) != -1) {
@@ -737,12 +800,21 @@ public class Main {
 		//This bytes[] has bytes in decimal format;
 		//Convert it to hexadecimal format
 		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < bytes.length; i++) {
-			sb.append(Integer.toString((bytes[i] & 0xff) + 0x100, 16).substring(1));
+		for (byte aByte : bytes) {
+			sb.append(Integer.toString((aByte & 0xff) + 0x100, 16).substring(1));
 		}
 
 		//return complete hash
 		return sb.toString();
+	}
+
+	static class Song {
+		String name, path;
+
+		Song(String name, String path) {
+			this.name = name;
+			this.path = path;
+		}
 	}
 
 }
